@@ -68,12 +68,6 @@ npm --prefix frontend run dev
 
 Open http://localhost:3000
 
-## Screenshots
-
-![Home View](screenshots/home.png)  
-![Upload Page](screenshots/upload.png)  
-![Ask & Chart](screenshots/ask.png)  
-
 ## Configuration
 
 Set environment variables in `.env` or your shell:
