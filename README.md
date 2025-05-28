@@ -4,7 +4,7 @@
 
 ## Overview
 
-AWS Cost Analyzer lets you upload billing reports (CSV/Excel/PDF), store and aggregate costs in a local MySQL database, then ask natural-language questions to gain insights and optimization suggestions using OpenAI’s GPT-3.5 Turbo.
+AWS Cost Analyzer lets you upload billing reports (CSV/Excel/PDF), store and aggregate costs in a local MySQL database, then ask or CHAT with natural-language questions to gain insights and optimization suggestions using OpenAI’s GPT-3.5 Turbo.
 
 ## Tech Stack
 
