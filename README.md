@@ -17,10 +17,38 @@ AWS Cost Analyzer lets you upload billing reports (CSV/Excel/PDF), store and agg
 ## Architecture
 
 ```mermaid
-flowchart TB
-  A[Next.js Frontend] --> B[FastAPI Backend]
-  B --> C[MySQL Database]
-  B --> D[OpenAI O4-mini Turbo]
+flowchart TB  
+    %% AWS Subgraph  
+    subgraph AWS  
+  
+        subgraph Frontend  
+            A("Next.js + react-chartjs-2  
+Deployed on S3/CloudFront")  
+        end  
+  
+        subgraph Backend  
+            B("FastAPI  
+Deployed on EC2/ECS")  
+            C("MySQL (AWS RDS)")  
+            Ask("ask.py - Natural-Language Queries")  
+        end  
+  
+        S("S3 Bucket - File Uploads")  
+    end  
+  
+    %% External GPT Service  
+    subgraph External  
+        D("OpenAI 4O-mini")  
+    end  
+  
+    %% User Interaction  
+    U((User)) --> A  
+    A --> B  
+    B --> C  
+    B --> Ask  
+    Ask --> D  
+    B --> S  
+    B --> A  
 ```
 
 ## Features
