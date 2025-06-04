@@ -20,7 +20,7 @@ AWS Cost Analyzer lets you upload billing reports (CSV/Excel/PDF), store and agg
 flowchart TB
   A[Next.js Frontend] --> B[FastAPI Backend]
   B --> C[MySQL Database]
-  B --> D[OpenAI GPT-3.5 Turbo]
+  B --> D[OpenAI O4-mini Turbo]
 ```
 
 ## Features
