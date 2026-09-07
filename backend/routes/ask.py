@@ -1,13 +1,53 @@
+"""Natural-language → SQL → summarization endpoint.
+
+Uses the modern openai>=1.0 SDK (client.chat.completions.create).
+Model defaults to gpt-4o-mini for cost-effective natural-language SQL
+generation. Override with the OPENAI_MODEL env var.
+"""
+
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
-import openai
 import os
+
+from openai import OpenAI
+
 from db import get_connection
 
-# configure OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
+_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+_client: OpenAI | None = None
+
+
+def _get_client() -> OpenAI:
+    global _client
+    if _client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=500,
+                detail="OPENAI_API_KEY environment variable is not set.",
+            )
+        _client = OpenAI(api_key=api_key)
+    return _client
+
 
 router = APIRouter()
+
+
+def _ask_llm(system_prompt: str, user_prompt: str) -> str:
+    """Single-turn chat completion helper."""
+    client = _get_client()
+    resp = client.chat.completions.create(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()
+
 
 @router.post("/ask")
 async def ask_question(payload: dict):
@@ -15,50 +55,46 @@ async def ask_question(payload: dict):
         raise HTTPException(status_code=400, detail="Field 'question' is required.")
     question = payload["question"]
 
-    # 1. Generate SQL query from natural language
-    sql_prompt = (
-        f"Generate an SQL query for MySQL based on the following user question. "
-        f"Use the 'cost_data' or 'cost_summary' tables. "
-        f"Question: \"{question}\". "
-        f"Return only the SQL query without additional explanation."
+    # 1. Generate SQL query from natural language.
+    sql_query = _ask_llm(
+        system_prompt="You generate MySQL SQL queries.",
+        user_prompt=(
+            "Generate an SQL query for MySQL based on the following user "
+            "question. Use the 'cost_data' or 'cost_summary' tables. "
+            f"Question: \"{question}\". "
+            "Return only the SQL query without additional explanation."
+        ),
     )
-    sql_resp = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You generate MySQL SQL queries."},
-            {"role": "user", "content": sql_prompt}
-        ]
-    )
-    sql_query = sql_resp.choices[0].message.content.strip()
 
-    # 2. Execute SQL against the database
+    # 2. Execute SQL against the database.
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(sql_query)
-    rows = cursor.fetchall()
-    columns = [desc[0] for desc in cursor.description]
-    data = [dict(zip(columns, row)) for row in rows]
-    cursor.close()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(sql_query)
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            data = [dict(zip(columns, row)) for row in rows]
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
 
-    # 3. Summarize results via LLM
-    summary_prompt = (
-        f"You are an AWS cost analysis assistant. "
-        f"Use the following query results to answer the user's question.\n"
-        f"Question: \"{question}\"\n"
-        f"Data: {data}"
+    # 3. Summarize results via LLM.
+    answer = _ask_llm(
+        system_prompt="You provide concise AWS cost insights.",
+        user_prompt=(
+            "You are an AWS cost analysis assistant. "
+            "Use the following query results to answer the user's question.\n"
+            f"Question: \"{question}\"\n"
+            f"Data: {data}"
+        ),
     )
-    sum_resp = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You provide concise AWS cost insights."},
-            {"role": "user", "content": summary_prompt}
-        ]
-    )
-    answer = sum_resp.choices[0].message.content.strip()
 
-    return JSONResponse({
-        "answer": answer,
-        "data": data,
-        "sql": sql_query
-    })
+    return JSONResponse(
+        {
+            "answer": answer,
+            "data": data,
+            "sql": sql_query,
+        }
+    )

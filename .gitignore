@@ -1,0 +1,46 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+env.bak/
+venv.bak/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+*.egg-info/
+dist/
+build/
+
+# --- Environment / secrets ---
+.env
+.env.local
+.env.*.local
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Test uploads (local dev) ---
+backend/uploads/

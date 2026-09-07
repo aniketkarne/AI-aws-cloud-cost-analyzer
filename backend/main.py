@@ -1,11 +1,20 @@
+import os
+import sys
+from pathlib import Path
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.routes import upload, ask
+# Allow `python main.py` from this directory, and `uvicorn backend.main:app`
+# from the repo root, to both find the `db` and `routes` modules.
+_BACKEND_DIR = Path(__file__).resolve().parent
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
 
-import db
+from backend.routes import upload, ask  # noqa: E402
+from db import initialize_tables  # noqa: E402
 
 app = FastAPI()
 

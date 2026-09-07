@@ -1,6 +1,7 @@
-fastapi==0.95.1
-uvicorn==0.22.0
-pandas
-mysql-connector-python==8.0.33
-openai==0.27.2
-python-multipart
+fastapi>=0.110,<1.0
+uvicorn>=0.27,<1.0
+pandas>=2.0,<3.0
+mysql-connector-python>=8.0,<10.0
+openai>=1.30,<2.0
+python-multipart>=0.0.9
+pydantic>=2.0,<3.0
