@@ -5,14 +5,14 @@
 
 ## Overview
 
-AWS Cost Analyzer lets you upload billing reports (CSV / Excel), store and aggregate costs in a local MySQL database, then ask natural-language questions to gain insights and optimization suggestions using OpenAI's **gpt-4o-mini**.
+AWS Cost Analyzer lets you upload billing reports (CSV / Excel), store and aggregate costs in a local MySQL database, then ask natural-language questions to gain insights and optimization suggestions using OpenAI's **gpt-6-luna**.
 
 ## Tech Stack
 
 - **Backend**: Python 3.10+, FastAPI, Uvicorn, Pandas
 - **Database**: MySQL 8+
 - **Frontend**: Next.js (React), Tailwind CSS
-- **LLM**: OpenAI `gpt-4o-mini` (override via `OPENAI_MODEL` env var)
+- **LLM**: OpenAI `gpt-6-luna` (override via `OPENAI_MODEL` env var)
 - **Charts**: Chart.js, react-chartjs-2
 
 ## Architecture
@@ -38,7 +38,7 @@ Deployed on EC2/ECS")
 
     %% External GPT Service
     subgraph External
-        D("OpenAI gpt-4o-mini")
+        D("OpenAI gpt-6-luna")
     end
 
     %% User Interaction
@@ -105,7 +105,7 @@ Open <http://localhost:3000>.
 Required environment variables (see `.env.example`):
 
 - `OPENAI_API_KEY` — your OpenAI API key
-- `OPENAI_MODEL` — (optional) defaults to `gpt-4o-mini`
+- `OPENAI_MODEL` — (optional) defaults to `gpt-6-luna`
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME` — MySQL connection
 
 The backend auto-creates the `aws_costs` database and the `cost_data` /
@@ -118,10 +118,16 @@ The backend auto-creates the `aws_costs` database and the `cost_data` /
 ├── backend
 │   ├── main.py             # FastAPI app + startup hooks
 │   ├── db.py               # MySQL connection + schema bootstrap
+│   ├── sql_safety.py       # LLM-SQL sanitizer (read-only whitelist)
 │   ├── routes
 │   │   ├── upload.py       # POST /upload
 │   │   └── ask.py          # POST /ask (NL → SQL → answer)
 │   └── requirements.txt
+├── tests
+│   ├── conftest.py
+│   ├── test_sql_safety.py  # unit tests for the sanitizer
+│   ├── test_ask_endpoint.py # integration tests for /ask (mocked OpenAI + MySQL)
+│   └── test_upload_endpoint.py # /upload filename safety + temp cleanup
 ├── frontend
 │   ├── pages
 │   │   ├── index.tsx
@@ -136,8 +142,42 @@ The backend auto-creates the `aws_costs` database and the `cost_data` /
 ├── .env.example
 ├── .gitignore
 ├── LICENSE
+├── pytest.ini
 └── README.md
 ```
+
+## Testing
+
+The suite covers the LLM-SQL sanitizer (read-only whitelist, multi-
+statement truncation, comment handling) and the `/ask` endpoint
+handling of hostile LLM outputs:
+
+```bash
+cd backend
+pip install -r requirements.txt pytest httpx
+cd ..
+pytest -q
+```
+
+CI runs the same suite on Python 3.10 and 3.12 via
+`.github/workflows/tests.yml`. No MySQL or OpenAI key is required to
+run the suite; both are mocked.
+
+## Security note on `/ask`
+
+The `/ask` endpoint generates a SQL query from your natural-language
+question via the OpenAI API and runs it against your local MySQL
+database. Any SQL the LLM emits is passed through
+`backend.sql_safety.sanitize_llm_sql` before execution: markdown fences
+are stripped, only the first statement is kept, and only `SELECT`,
+`WITH`, or `SHOW` are allowed — anything else is rejected with HTTP
+400. A `WITH` statement must end in a `SELECT` main statement (MySQL
+permits CTEs before writes), and `INTO OUTFILE` / `INTO DUMPFILE` are
+rejected anywhere in the statement. Scanning is string-literal aware,
+so legitimate queries containing `;`, `--` or `#` inside quoted strings
+pass through intact. This is defense-in-depth. Run the backend with a
+dedicated MySQL user that has only `SELECT` on `cost_data` and
+`cost_summary` for real protection.
 
 ## Contributing
 

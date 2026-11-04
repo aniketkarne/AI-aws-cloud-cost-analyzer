@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -18,18 +17,20 @@ from db import initialize_tables  # noqa: E402
 
 app = FastAPI()
 
-# Enable CORS for local development
+# Enable CORS for local development. Wildcard origin cannot be combined
+# with credentials (the CORS spec forbids it — browsers reject the
+# response), so allow_credentials stays off.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 @app.on_event("startup")
 def startup_event():
-    db.initialize_tables()
+    initialize_tables()
 
 @app.get("/")
 def root():
