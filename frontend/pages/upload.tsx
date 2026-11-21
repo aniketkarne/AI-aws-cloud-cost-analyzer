@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState } from 'react';
+import { ApiRequestError, apiUrl, readJson } from '../lib/api';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -21,11 +22,13 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await fetch('http://localhost:8000/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      setResponse(data);
+      const res = await fetch(apiUrl('/upload'), { method: 'POST', body: formData });
+      const data = await readJson(res);
+      setResponse(data ?? { error: 'Empty response from backend.' });
     } catch (err) {
-      setResponse({ error: 'Upload failed.' });
+      setResponse({
+        error: err instanceof ApiRequestError ? err.message : 'Upload failed.',
+      });
     }
     setLoading(false);
   };
@@ -65,7 +68,11 @@ export default function UploadPage() {
         {response && (
           <div className="mt-6 bg-white p-4 rounded-lg shadow-md">
             <h2 className="text-xl font-medium text-gray-700 mb-2">Response</h2>
-            <pre className="bg-gray-100 p-4 rounded">{JSON.stringify(response, null, 2)}</pre>
+            {response.error ? (
+              <p className="text-red-600">{response.error}</p>
+            ) : (
+              <pre className="bg-gray-100 p-4 rounded">{JSON.stringify(response, null, 2)}</pre>
+            )}
           </div>
         )}
       </main>
