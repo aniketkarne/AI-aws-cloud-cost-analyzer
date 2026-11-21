@@ -9,6 +9,7 @@ import {
   Legend
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import { toChartPoints } from '../lib/chartData';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -25,15 +26,24 @@ const CostChart: React.FC<CostChartProps> = ({
   valueKey,
   title = 'Cost Breakdown'
 }) => {
-  const labels = data.map(item => item[labelKey] as string);
-  const values = data.map(item => Number(item[valueKey]));
+  // Result rows carry the raw column names of the LLM-generated SQL, so the
+  // expected keys are only a preference; non-numeric rows are dropped.
+  const points = toChartPoints(data, labelKey, valueKey);
+
+  if (points.length === 0) {
+    return (
+      <p className="text-gray-500">
+        No numeric column to plot in these results.
+      </p>
+    );
+  }
 
   const chartData = {
-    labels,
+    labels: points.map((p) => p.label),
     datasets: [
       {
         label: valueKey,
-        data: values,
+        data: points.map((p) => p.value),
         backgroundColor: 'rgba(25, 118, 210, 0.7)',
       }
     ]

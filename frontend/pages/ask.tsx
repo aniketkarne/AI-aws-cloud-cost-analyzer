@@ -2,6 +2,7 @@ import Head from 'next/head';
 import { useState } from 'react';
 import Link from 'next/link';
 import CostChart from '../components/CostChart';
+import { ApiRequestError, apiUrl, readJson } from '../lib/api';
 
 export default function AskPage() {
   const [question, setQuestion] = useState('');
@@ -14,15 +15,18 @@ export default function AskPage() {
     setLoading(true);
     setResult(null);
     try {
-      const response = await fetch('http://localhost:8000/ask', {
+      const response = await fetch(apiUrl('/ask'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
       });
-      const data = await response.json();
-      setResult(data);
+      const data = await readJson(response);
+      setResult(data ?? { error: 'Empty response from backend.' });
     } catch (err) {
-      setResult({ error: 'Failed to fetch answer.' });
+      setResult({
+        error:
+          err instanceof ApiRequestError ? err.message : 'Failed to fetch answer.',
+      });
     }
     setLoading(false);
   };
@@ -60,7 +64,11 @@ export default function AskPage() {
           <div className="mt-6 space-y-6">
             <div className="bg-white p-4 rounded-lg shadow-md">
               <h2 className="text-xl font-medium text-gray-700">Answer</h2>
-              <p className="mt-2 text-gray-800">{result.answer || result.error}</p>
+              {result.error ? (
+                <p className="mt-2 text-red-600">{result.error}</p>
+              ) : (
+                <p className="mt-2 text-gray-800">{result.answer}</p>
+              )}
             </div>
             {result.data && (
               <div className="bg-white p-4 rounded-lg shadow-md">
